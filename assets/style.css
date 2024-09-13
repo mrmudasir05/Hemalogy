@@ -1,0 +1,91 @@
+/* assets/styles.css */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 200px;
+    padding: 20px;
+    background-color: #051c41;
+}
+
+.content {
+    margin-left: 220px;
+    padding: 20px;
+}
+
+.link-style {
+    color: #565e68;
+    text-decoration: none;
+    display: block;
+    padding: 10px 0;
+}
+
+.header {
+    background-color: #add8e6;
+    padding: 10px;
+}
+
+.header .logo {
+    height: 50px;
+    width: 50px;
+    border-radius: 50%;
+    float: left;
+    margin-right: 10px;
+}
+
+.header .title {
+    text-align: center;
+    display: inline-block;
+    width: 80%;
+}
+
+.header .right-logo {
+    float: right;
+    margin-left: 10px;
+}
+
+.header .sub-title {
+    text-align: center;
+}
+/* assets/styles.css */
+.footer {
+    background-color: #124f8f;
+    padding: 20px;
+}
+
+.footer-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    max-width: 1000px;
+    margin: auto;
+}
+
+.footer-section {
+    text-align: center;
+    padding: 10px;
+    color: white;
+}
+
+.footer-section h3, .footer-section h5 {
+    margin-bottom: 10px;
+}
+
+.social-icon {
+    height: 30px;
+    width: 30px;
+    margin-right: 20px;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.social-icon:hover {
+    transform: scale(1.1);
+}
+
+#map {
+    height: 80px;
+    width: 90px;
+    margin: auto;
+}
