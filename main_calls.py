@@ -41,14 +41,7 @@ def main(img_path):
                     x, y, w, h = k
                     p_img = cv2.rectangle(org_image, (x, y), (x + w, y + h), colors[i], 2)
 
-            # Save or display the image with bounding boxes
-            # output_image_path = os.path.join(analyzer_dir_path, "output_image.jpg")
-            # cv2.imwrite(output_image_path, org_image)
-            # print(f"Image with bounding boxes saved at {output_image_path}")
+            # delete the temp directory
             delete_directory_contents(analyzer_dir_path)
-            # print(pd.DataFrame(a))
-            # Optionally, display the image using OpenCV (uncomment to use)
-            # cv2.imshow('Image with Bounding Boxes', p_img)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+         
     return p_img, a
