@@ -182,7 +182,7 @@ def predict_images(folder_path, seperated_patches_bbox):
 
 
     for filename in os.listdir(folder_path):
-        print(filename)
+        # print(filename)
         if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff')):
             image_path = os.path.join(folder_path, filename)
             image = cv2.imread(image_path)

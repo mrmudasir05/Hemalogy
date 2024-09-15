@@ -14,17 +14,14 @@ def main(img_path):
     with tempfile.TemporaryDirectory() as analyzer_dir_path:
         print("Temporary Directory for Analysis Data:", analyzer_dir_path)
 
-        # Load the machine learning model and PCA
-        with open(r"svm_model_version_3.0.sav", 'rb') as model_file:
-            model = pickle.load(model_file)
-
-        with open(r"pca_version_3.0.pkl", 'rb') as pca_file:
-            pca = pickle.load(pca_file)
+        # Initialize p_img in case org_image is not found
+        p_img = None
 
         # Read the image using OpenCV
         org_image = cv2.imread(img_path)
         if org_image is None:
             print(f"Error: Image file not found at {img_path}")
+            return None, None
         else:
             # Slice individual cells
             total_time, sliced_cells_dir, separated_patches_bbox = slice_individual_cells(org_image, analyzer_dir_path)
@@ -41,7 +38,7 @@ def main(img_path):
                     x, y, w, h = k
                     p_img = cv2.rectangle(org_image, (x, y), (x + w, y + h), colors[i], 2)
 
-            # delete the temp directory
+            # Clean up: delete the temp directory contents
             delete_directory_contents(analyzer_dir_path)
-         
+
     return p_img, a

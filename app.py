@@ -7,6 +7,7 @@ import pandas as pd
 import base64
 import tempfile
 import io
+import os
 import cv2
 from main_calls import main
 from PIL import Image
@@ -17,8 +18,11 @@ import plotly.graph_objs as go  # plotly.graph_objs is fine
 
 
 # Initialize the Dash app
+
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 
+# Assign the Flask server to the 'server' attribute
+server = app.server
 SIDEBAR_STYLE = {
     'position': 'fixed',
     'top': '0',
@@ -218,7 +222,7 @@ def render_page_content(pathname):
                     'fontWeight': 'bold'
                 }
             ),
-
+            dcc.Store(id='temp-file-path', storage_type='memory'), 
             html.Div([
                 html.Button("Download Report", id="download-button"),
                 dcc.Download(id="download-report")
@@ -250,19 +254,7 @@ def render_page_content(pathname):
 
         ], style=CONTENT_STYLE)
         
-    
 
-    # elif pathname == '/classifier':
-    #     return html.Div([
-    #         html.Header([
-    #             html.H1("Classifier Page", style={'textAlign': 'center'})
-    #         ], style={'backgroundColor': '#124f8f', 'padding': '13px'}),
-    #         html.Div([
-    #             html.H2("Classifier information"),
-    #             html.P("Information about the image classification model used in this application."),
-    #             html.P("Developed using machine learning techniques."),
-    #         ], style={'padding': '20px'})
-    #     ], style=CONTENT_STYLE)
 
     else:
         return html.Div([
@@ -280,24 +272,34 @@ def render_page_content(pathname):
 @app.callback(
     [Output('original-image', 'src'),
      Output('processed-image', 'src'),
-     Output('image-report-table', 'data')],
+     Output('image-report-table', 'data'),
+     Output('temp-file-path', 'data')],  # Store the temp file path
     [Input('upload-image', 'contents')],
     [State('upload-image', 'filename')]
 )
 def update_images(contents, filename):
     if contents is not None:
-        # Decode the image
+        # Decode the image from base64
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
 
-        # Save the uploaded image temporarily using tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+        # Save the uploaded image temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=filename[-4:]) as temp_file:
             temp_file.write(decoded)
-            temp_filename = temp_file.name  # Get the temporary file name
+            temp_filename = temp_file.name  # Get the full temporary file path
+        
+        print(f"Temporary file saved at: {temp_filename}")
 
-        # Process the image using the main function
+        # Now read the image from the temporary file using OpenCV
+        org_image = cv2.imread(temp_filename)
+        
+        if org_image is None:
+            print(f"Error: Image file not found at {temp_filename}")
+            return None, None, [], None
+        
+        # Process the image
         processed_image, df = process_image(temp_filename)
-
+        
         # Convert the processed image to base64
         _, buffer = cv2.imencode('.png', processed_image)
         processed_image_base64 = base64.b64encode(buffer).decode()
@@ -305,69 +307,79 @@ def update_images(contents, filename):
         # Convert DataFrame to list of dictionaries
         table_data = df.to_dict('records')
 
-        # Convert images to base64
+        # Convert images to base64 for displaying in the app
         original_image_src = f'data:image/png;base64,{base64.b64encode(decoded).decode()}'
         processed_image_src = f'data:image/png;base64,{processed_image_base64}'
 
-        # Optionally, clean up the temp file after processing if delete=True
-        return original_image_src, processed_image_src, table_data
+        return original_image_src, processed_image_src, table_data, temp_filename
     else:
-        return None, None, []
+        return None, None, [], None
 
-# Callback to download the report
+
+
+
 @app.callback(
     Output("download-report", "data"),
     Input("download-button", "n_clicks"),
     State('upload-image', 'contents'),
-    State('upload-image', 'filename'),
+    State('temp-file-path', 'data'),  # Read the temp file path
     State('image-report-table', 'data'),
     State('input-1', 'value'),
     State('input-2', 'value'),
     State('url', 'pathname'),
     prevent_initial_call=True
 )
-def generate_report(n_clicks, contents, filename, table_data, input1_value, input2_value, pathname):
-    if contents and table_data:
-        # Decode the image
+def generate_report(n_clicks, contents, temp_file_path, table_data, input1_value, input2_value, pathname):
+    if contents and table_data and n_clicks:
+        # Decode the uploaded image
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
-        
-        # Create a PDF
+
+        # Create a PDF buffer
         buffer = io.BytesIO()
         pdf = canvas.Canvas(buffer, pagesize=letter)
-        
-        # Add input values to PDF
-        pdf.drawString(50, 300, f"Animal Tag: {input1_value}")
-        pdf.drawString(50, 280, f"Picture Tag: {input2_value}")
 
-        # Add original image to PDF
+        # Add input values to the PDF
+        pdf.drawString(50, 750, f"Animal Tag: {input1_value}")
+        pdf.drawString(50, 730, f"Picture Tag: {input2_value}")
+
+        # Add original image to the PDF
         original_image = ImageReader(io.BytesIO(decoded))
         pdf.drawImage(original_image, 50, 500, width=200, height=200)
+
+        # Process the image to get processed image using the temp file path
+        processed_image, _ = process_image(temp_file_path)
         
-        # Process the image to get processed image
-        processed_image, _ = process_image(filename)
-        _, buffer_processed = cv2.imencode('.png', processed_image)
-        processed_image_base64 = base64.b64encode(buffer_processed).decode()
-        processed_image_reader = ImageReader(io.BytesIO(base64.b64decode(processed_image_base64)))
-        
-        # Add processed image to PDF
-        pdf.drawImage(processed_image_reader, 300, 500, width=200, height=200)
-        
-        # Add table data to PDF
+        # Ensure processed_image exists and is valid
+        if processed_image is not None and processed_image.size > 0:
+            # Properly handle cv2.imencode output
+            success, buffer_processed = cv2.imencode('.png', processed_image)
+            if success:
+                processed_image_base64 = base64.b64encode(buffer_processed).decode()
+                processed_image_reader = ImageReader(io.BytesIO(base64.b64decode(processed_image_base64)))
+
+                # Add processed image to PDF
+                pdf.drawImage(processed_image_reader, 300, 500, width=200, height=200)
+
+        # Add table data to PDF (Cell Type Counts)
         pdf.drawString(50, 450, "Cell Type Counts")
         table_start_y = 430
         for row in table_data:
             pdf.drawString(50, table_start_y, f"{row['Cell Type']}: {row['Count']}")
             table_start_y -= 20
-        
+
+        # Finalize and save the PDF
         pdf.save()
-        
+
         # Prepare PDF for download
         buffer.seek(0)
         pdf_data = buffer.getvalue()
-        
-        return dcc.send_bytes(pdf_data, f"{pathname}_report.pdf")
 
-# Run the app
+        # Return the PDF as a downloadable file
+        return dcc.send_bytes(pdf_data, filename=f"{pathname}_report.pdf")
+    
+    return dash.no_update
+
+
 if __name__ == '__main__':
     app.run_server(debug=True)
