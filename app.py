@@ -220,7 +220,29 @@ def render_page_content(pathname):
                 style_header={
                     'backgroundColor': 'rgb(230, 230, 230)',
                     'fontWeight': 'bold'
-                }
+                },
+                style_data_conditional=[
+                    {
+                        'if': {'filter_query': '{Cell Type} = "Echinocytes"'},
+                        'color': 'rgb(0, 0, 255)'  # Blue
+                    },
+                    {
+                        'if': {'filter_query': '{Cell Type} = "Normal-RBCs"'},
+                        'color': 'rgb(0, 0, 0)'  # Black
+                    },
+                    {
+                        'if': {'filter_query': '{Cell Type} = "others"'},
+                        'color': 'rgb(128, 128, 128)'  # Gray (instead of white for visibility)
+                    },
+                    {
+                        'if': {'filter_query': '{Cell Type} = "Schistocytes"'},
+                        'color': 'rgb(0, 255, 0)'  # Green
+                    },
+                    {
+                        'if': {'filter_query': '{Cell Type} = "Tear_drop_cells"'},
+                        'color': 'rgb(255, 0, 0)'  # Red
+                    }
+                ]
             ),
             dcc.Store(id='temp-file-path', storage_type='memory'), 
             html.Div([
@@ -364,9 +386,30 @@ def generate_report(n_clicks, contents, temp_file_path, table_data, input1_value
         # Add table data to PDF (Cell Type Counts)
         pdf.drawString(50, 450, "Cell Type Counts")
         table_start_y = 430
+        
+        # Define colors for cell types (RGB format for reportlab)
+        cell_type_colors = {
+            'Echinocytes': (0, 0, 1),        # Blue
+            'Normal-RBCs': (0, 0, 0),        # Black
+            'others': (0.5, 0.5, 0.5),       # Gray
+            'Schistocytes': (0, 1, 0),       # Green
+            'Tear_drop_cells': (1, 0, 0)     # Red
+        }
+        
         for row in table_data:
+            # Set color based on cell type
+            cell_type = row['Cell Type']
+            if cell_type in cell_type_colors:
+                r, g, b = cell_type_colors[cell_type]
+                pdf.setFillColorRGB(r, g, b)
+            else:
+                pdf.setFillColorRGB(0, 0, 0)  # Default to black
+                
             pdf.drawString(50, table_start_y, f"{row['Cell Type']}: {row['Count']}")
             table_start_y -= 20
+            
+        # Reset fill color to black for any future text
+        pdf.setFillColorRGB(0, 0, 0)
 
         # Finalize and save the PDF
         pdf.save()
